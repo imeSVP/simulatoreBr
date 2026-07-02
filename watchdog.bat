@@ -1,8 +1,7 @@
 @echo off
 chcp 437 >nul
 
-E:
-cd E:\code\segugioBr
+
 
 :: 使用WMIC获取标准日期时间
 for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
@@ -52,7 +51,7 @@ timeout /t 3 /nobreak >nul
 
 :: STEP 3: Start Python
 echo [Step 3] Starting Python with workGroup %workGroup%...
-start python prestitiMain.py
+start python main_simularoti.py %workGroup% %date_z%
 
 :: STEP 4: Wait for Python to initialize and heartbeat file
 echo [Step 4] Waiting for heartbeat file to appear...
@@ -100,7 +99,7 @@ timeout /t 2 /nobreak >nul
 :MONITOR
 cls
 echo ========================================
-echo Watchdog Monitor - WorkGroup: %workGroup%
+echo Watchdog Monitor - WorkGroup: %workGroup% 
 if not "%pid%"=="" echo PID: %pid% - Launch: %retry_count%/%max_retries%
 echo Time: %time%
 echo Heartbeat file: %heartbeat_file%

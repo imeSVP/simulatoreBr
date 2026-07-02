@@ -40,31 +40,6 @@ def _exctuteSQLList(queryList: list, md=False):
         return False
 
 
-def loadCSVtoDB1(filePathStr, memTableNamestr, tableNamestr):
-    tNr = random.randint(1, 5)
-    queryList = []
-    query = f"CREATE TEMPORARY TABLE IF NOT EXISTS {memTableNamestr}{tNr} AS (SELECT * FROM {memTableNamestr} LIMIT 0)"
-    queryList.append(query)
-    query = f"""LOAD DATA LOCAL INFILE '{filePathStr}'
-    INTO TABLE {memTableNamestr}{tNr}
-    FIELDS TERMINATED BY ','
-    ENCLOSED BY '"'
-    LINES TERMINATED BY '\\r\\n'
-    IGNORE 1 LINES;"""
-    queryList.append(query)
-
-    query = f"""
-    INSERT INTO {tableNamestr} select * from {memTableNamestr}{tNr}
-    """
-
-    queryList.append(query)
-    query = f"DROP TABLE {memTableNamestr}{tNr}"
-    queryList.append(query)
-    state = _exctuteSQLList(queryList, True)
-    addLogFile("inputTb querylist", queryList)
-    return state
-
-
 def loadCSVtoDB(filePathStr, memTableNamestr, tableNamestr):
     tNr = random.randint(1, 5)
     queryList = []
@@ -79,7 +54,50 @@ def loadCSVtoDB(filePathStr, memTableNamestr, tableNamestr):
     queryList.append(query)
 
     query = f"""
-    INSERT INTO {tableNamestr} select * from {memTableNamestr}{tNr}
+    INSERT INTO {tableNamestr} (
+        fetching_date,
+        id_input,
+        rata_mensile,
+        TS00,
+        TS01,
+        TS02,
+        TS03,
+        TS04,
+        TS05,
+        TS06,
+        TS07,
+        TS08,
+        TS09,
+        TS10,
+        TS11,
+        TS12,
+        TS13,
+        TS14,
+        TS15,
+        TS16,
+        TS17,
+        TS18,
+        TS19,
+        TS20,
+        TS21,
+        TS22,
+        TS23,
+        TS24,
+        TS25,
+        TS26,
+        TS27,
+        TS28,
+        TS29,
+        TS30,
+        TS31,
+        TS32,
+        TS33,
+        TS34,
+        TS35,
+        TS36,
+        TS37
+    )
+    select * from {memTableNamestr}{tNr}
     """
 
     queryList.append(query)
@@ -90,13 +108,6 @@ def loadCSVtoDB(filePathStr, memTableNamestr, tableNamestr):
     return state
 
 
-def checkBusinessDataToday(datecheck):
-    query = f"SELECT * FROM finser_utilities_mb_db.output_luce_info_segugio where fetching_date >= '{datecheck}'"
-
-    addLogFile("inputTb query", query)
-    return _getDfFromSQL(query)
-
-
 def readPersonalData():
     query = """
     SELECT nome,cognome, email, telefono_celullare FROM finser_banks_db.generalita;
@@ -105,20 +116,22 @@ def readPersonalData():
     return _getDfFromSQL(query)
 
 
-def readInputFromMysql(dateString: str, ON_OFF: str, isLuce):
-    if isLuce:
-        inputTb = globals_and_constants.dbTable["inputTb1"]
-        outputTb = globals_and_constants.dbTable["outputTb1"]
-    else:
-        inputTb = globals_and_constants.dbTable["inputTb2"]
-        outputTb = globals_and_constants.dbTable["outputTb2"]
+def readInputFromMysql(dateString: str, ON_OFF: str,bankName: str):
+    if bankName.lower() in 'compass':
+        inputTb = globals_and_constants.dbTable["inputCompass"]
+    if bankName.lower() in 'agos':
+        inputTb = globals_and_constants.dbTable["inputAgos"]
+
+
+    outputTb = globals_and_constants.dbTable["outputTb"]
     query = f"""
         select zinput.* from  {inputTb} as zinput
             where zinput.ON_OFF = {ON_OFF}
             and zinput.id not in (
-                select input_id 
+                select id_input 
                 from {outputTb} as zoutput 
                 where zoutput.fetching_date>='{dateString}'
+                and zoutput.TS00 = '{bankName.upper()}'
         )
     """
     addLogFile("inputTb query", query)

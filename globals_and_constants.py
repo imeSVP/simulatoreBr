@@ -4,32 +4,29 @@
 # globals_and_constants.py
 
 from pathlib import Path
+
+
+csvFolderPath = 'csvdata' 
 testValue = 100
 
 WEBDRIVER_LOC = str(Path(__file__).parent.resolve()/'chromedriver')
 # WEBDRIVER_LOC = 'chromedriver.exe'
 
 MYSQL = {'host': '146.59.233.56', 'user': 'finser', 'passwd': 'finser0914?',
-         'db': 'finser_utilities_db', 'use_unicode': True,
-         'charset': 'utf8mb4','local_infile':1}
-MYSQL1 = {'host': '146.59.233.56', 'user': 'finser', 'passwd': 'finser0914?',
-         'db': 'finser_utilities_mb_db', 'use_unicode': True,
+         'db': 'finser_banks_db', 'use_unicode': True,
          'charset': 'utf8mb4','local_infile':1}
 
 
 
-dbTable = {'inputTb1':"input_luce_info_segugio",
-           'inputTb2':"input_gas_info_segugio",
+dbTable = {'inputCompass':"input_simulatori_compass",
+           'inputAgos':"input_simulatori_agos",
            'inputTbGeneralita':"finser_banks_db.generalita",
-           'outputTb1':'output_luce_info_segugio',
-           'outputTb2':'output_gas_info_segugio',
-           'outputTb3':'output_luce_info_segugio'
+           'outputTb':'output_simulatori',
+           'outputTbRam':'output_simulatori_ram'
            }
 DEBIAN = {'hostname': '146.59.233.56', 'username': 'servern',
           'password': 'Chi1456?'}
-USERNAME = "svilupp01"
-PASSWORD = "Sv1luPp02045"
-#ENDPOINT = "pr.oxylabs.io"
+
 countries = [
     #"CH",
     "IT",
@@ -45,9 +42,11 @@ countries = [
     #"FI",
     #"HR"
   ];
-ENDPOINT = "pr.oxylabs.io"
-INIT_PORTS = [*range(20001, 29999)]
-COUNTRY = 'IT'
+INIT_PORTS = [1080]
+ENDPOINT = "proxy.goproxies.com"
+COUNTRY = "IT"
+USERNAME = "customer-imetrics-country-it"
+PASSWORD = "eddd26be6a43b9d6470b466ab19ef325"
 
 TWOCAPTCHA_KEY = '3da74b773dc0832937e86caa8e85cfff'
 
