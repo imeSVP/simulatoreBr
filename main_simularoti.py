@@ -10,7 +10,7 @@ from dbTools import (
     readPersonalData,
 )
 import getListDataCompass
-import getListDataAgos
+# import getListDataAgos
 
 # pip installation import
 from fake_useragent import UserAgent
