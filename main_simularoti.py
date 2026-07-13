@@ -11,6 +11,8 @@ from dbTools import (
 )
 import getListDataCompass
 # import getListDataAgos
+import getListDataUnicredit
+
 
 # pip installation import
 from fake_useragent import UserAgent
@@ -112,7 +114,58 @@ def beginCompasswork(workGroup, refreshFromDate):
                 )
                 addLogFile(f"load csv to table fail", traceback.format_exc(), True)
 
+def beginUnicrediwork(workGroup, refreshFromDate):
+    readState, inputDf = readInputFromMysql(refreshFromDate,workGroup,'unicredit')
+    addLogFile("input_dataFrame", inputDf)
+    if inputDf is None:
+        addLogFile("info", "unicredit inputDf is None", True)
+        return
+    
+    
+    inputDicOriList = inputDf.to_dict("records")
+    if len(inputDicOriList) == 0:
+        addLogFile("info", "unicredit inputDf is None 2", True)
+        return
+    
+    # return
+    allZData = []
+    inputCount = len(inputDicOriList)
+    for i in tqdm(range(inputCount), desc="unicredit input Progress:"):
+        time.sleep(1)
 
+        addLogFile("workGroup", workGroup)
+        try:
+            stateOutput, errcode, detailsDic, csvFileName = getListDataUnicredit.getList(
+                inputDicOriList[i]
+            )
+
+            addLogFile("DetailsDic", detailsDic)
+        except:
+            addLogFile("getData fail", "input ID: %d" % inputDicOriList[i]["id"], True)
+            addLogFile("Error", traceback.format_exc(), True)
+            continue
+        state = False
+        for n in range(5):
+            state = loadCSVtoDB(
+                csvFileName,
+                globals_and_constants.dbTable["outputTbRam"],
+                globals_and_constants.dbTable["outputTb"]
+            )
+
+            csvFileName1 = csvFileName.replace("csvdata/","")
+            if state:
+                break
+            if not state:
+                shutil.move(f"csvdata/{csvFileName1}", f"errfile/{csvFileName1}")
+                addLogFile(
+                    f"load csv to table fail {csvFileName}",
+                    traceback.format_exc(),
+                    True,
+                )
+                addLogFile(f"load csv to table fail", traceback.format_exc(), True)
+
+
+'''
 def beginAgoswork(workGroup, refreshFromDate):
     
     nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -165,7 +218,7 @@ def beginAgoswork(workGroup, refreshFromDate):
                 True,
             )
             addLogFile(f"load csv to table fail", traceback.format_exc(), True)
-
+'''
 
 
 def split_list(lst, m):
@@ -181,7 +234,7 @@ def main():
 
     beginCompasswork(workGroup,refreshFromDate)
     # beginAgoswork(workGroup, refreshFromDate) 
-
+    beginUnicrediwork(workGroup,refreshFromDate)
 if __name__ == "__main__":
     main()
 

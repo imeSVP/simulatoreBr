@@ -122,6 +122,8 @@ def readInputFromMysql(dateString: str, ON_OFF: str,bankName: str):
     if bankName.lower() in 'agos':
         inputTb = globals_and_constants.dbTable["inputAgos"]
 
+    if bankName.lower() in 'unicredit':
+        inputTb = globals_and_constants.dbTable['inputUnicredit']
 
     outputTb = globals_and_constants.dbTable["outputTb"]
     query = f"""
