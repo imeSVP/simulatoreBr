@@ -18,10 +18,11 @@ MYSQL = {'host': '146.59.233.56', 'user': 'finser', 'passwd': 'finser0914?',
 
 
 
-dbTable = {'inputCompass':"input_simulatori_compass",
-           'inputAgos':"input_simulatori_agos",
-           'inputUnicredit':"input_simulatori_unicredit",
-           'inputSantader':"input_simulatori_santader",
+dbTable ={ 'inputTb': 'input_simulatori_all',
+           # 'inputCompass':"input_simulatori_compass",
+           # 'inputAgos':"input_simulatori_agos",
+           # 'inputUnicredit':"input_simulatori_unicredit",
+           # 'inputSantander':"input_simulatori_santander",
            'inputTbGeneralita':"finser_banks_db.generalita",
            'outputTb':'output_simulatori',
            'outputTbRam':'output_simulatori_ram'

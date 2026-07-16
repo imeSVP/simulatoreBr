@@ -13,6 +13,7 @@ import getListDataCompass
 # import getListDataAgos
 import getListDataUnicredit
 import getListDataSantader
+import getListDataFiditalia
 
 # pip installation import
 from fake_useragent import UserAgent
@@ -95,24 +96,7 @@ def beginCompasswork(workGroup, refreshFromDate):
             addLogFile("Error", traceback.format_exc(), True)
             continue
         state = False
-        for n in range(5):
-            state = loadCSVtoDB(
-                csvFileName,
-                globals_and_constants.dbTable["outputTbRam"],
-                globals_and_constants.dbTable["outputTb"]
-            )
-
-            csvFileName1 = csvFileName.replace("csvdata/","")
-            if state:
-                break
-            if not state:
-                shutil.move(f"csvdata/{csvFileName1}", f"errfile/{csvFileName1}")
-                addLogFile(
-                    f"load csv to table fail {csvFileName}",
-                    traceback.format_exc(),
-                    True,
-                )
-                addLogFile(f"load csv to table fail", traceback.format_exc(), True)
+        writeToTable(csvFileName)
 
 def beginUnicrediwork(workGroup, refreshFromDate):
     readState, inputDf = readInputFromMysql(refreshFromDate,workGroup,'unicredit')
@@ -145,27 +129,11 @@ def beginUnicrediwork(workGroup, refreshFromDate):
             addLogFile("Error", traceback.format_exc(), True)
             continue
         state = False
-        for n in range(5):
-            state = loadCSVtoDB(
-                csvFileName,
-                globals_and_constants.dbTable["outputTbRam"],
-                globals_and_constants.dbTable["outputTb"]
-            )
+        writeToTable(csvFileName)
 
-            csvFileName1 = csvFileName.replace("csvdata/","")
-            if state:
-                break
-            if not state:
-                shutil.move(f"csvdata/{csvFileName1}", f"errfile/{csvFileName1}")
-                addLogFile(
-                    f"load csv to table fail {csvFileName}",
-                    traceback.format_exc(),
-                    True,
-                )
-                addLogFile(f"load csv to table fail", traceback.format_exc(), True)
 
 def beginSantaderwork(workGroup, refreshFromDate):
-    readState, inputDf = readInputFromMysql(refreshFromDate,workGroup,'santader')
+    readState, inputDf = readInputFromMysql(refreshFromDate,workGroup,'santander')
     addLogFile("input_dataFrame", inputDf)
     if inputDf is None:
         addLogFile("info", "unicredit inputDf is None", True)
@@ -195,7 +163,47 @@ def beginSantaderwork(workGroup, refreshFromDate):
             continue
         state = False
         writeToTable(csvFileName)
+
+def beginFiditaliawork(workGroup, refreshFromDate):
+    readState, inputDf = readInputFromMysql(refreshFromDate,workGroup,'FIDITALIA')
+    addLogFile("input_dataFrame", inputDf)
+    if inputDf is None:
+        addLogFile("info", "unicredit inputDf is None", True)
+        return
     
+    
+    inputDicOriList = inputDf.to_dict("records")
+    if len(inputDicOriList) == 0:
+        addLogFile("info", "unicredit inputDf is None 2", True)
+        return
+        # return
+    allZData = []
+    inputCount = len(inputDicOriList)
+
+
+    inputSpliteList = split_list(inputDicOriList, 20)
+
+    for inputSpliteItem in tqdm(inputSpliteList, desc="FIDITALIA input Group:"):
+        nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
+        csvFileName = f"{csvFolderPath}/outputSantader{nowtime}.csv"
+
+
+        for i in  tqdm(range(len(inputSpliteItem)), desc="inputSpliteItem", leave=False):
+            time.sleep(1)
+            addLogFile("workGroup", workGroup)
+            try:
+                stateOutput, errcode, detailsDic, csvFileName = getListDataFiditalia.getList(
+                    inputSpliteItem[i],
+                    csvFileName
+                )
+
+                addLogFile("DetailsDic", detailsDic)
+            except:
+                addLogFile("getData fail", "input ID: %d" % inputDicOriList[i]["id"], True)
+                addLogFile("Error", traceback.format_exc(), True)
+                continue
+
+        writeToTable(csvFileName)
 '''
 def beginAgoswork(workGroup, refreshFromDate):
     
@@ -286,7 +294,9 @@ def main():
     # beginCompasswork(workGroup,refreshFromDate)
     # beginAgoswork(workGroup, refreshFromDate) 
     # beginUnicrediwork(workGroup,refreshFromDate)
-    beginSantaderwork(workGroup, refreshFromDate)
+    # beginSantaderwork(workGroup, refreshFromDate)
+    beginFiditaliawork(workGroup,refreshFromDate)
+
 if __name__ == "__main__":
     main()
 

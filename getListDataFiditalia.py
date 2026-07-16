@@ -21,6 +21,13 @@ import traceback
 from TimeOutZhang import timeout, task_retry
 
 from csvToolZ import get_csv
+import os
+import aiohttp
+from pathlib import Path
+
+import json
+
+
 
 class GetListScraper:
     main_tab: uc.Tab
@@ -82,96 +89,88 @@ class GetListScraper:
 
         addLogFile("info_del", "__del__")
 
-    async def set_slider_value(self, page, target_value):
-        """点击设置滑块值"""
+    async def set_slider_value(self, page, slider_id, target_value):
+        """使用加减按钮设置滑块值"""
         try:
             # 等待滑块出现
-            await page.wait_for(".rc-slider-handle", timeout=10)
+            await page.wait_for(f"#{slider_id}", timeout=10)
             await asyncio.sleep(0.5)
             
-            # 用 JS 计算点击位置
-            pos = await page.evaluate(f"""
-                (function() {{
-                    const rail = document.querySelector('.rc-slider-rail');
-                    if (!rail) return null;
-                    
-                    const minVal = 1500;
-                    const maxVal = 30000;
-                    let target = {target_value};
-                    if (target < minVal) target = minVal;
-                    if (target > maxVal) target = maxVal;
-                    
-                    const percent = (target - minVal) / (maxVal - minVal);
-                    const rect = rail.getBoundingClientRect();
-                    
-                    // 限制百分比在 1% 到 99.5% 之间
-                    let clampedPercent = Math.max(0.01, Math.min(0.995, percent));
-                    
-                    return {{
-                        x: rect.left + rect.width * clampedPercent,
-                        y: rect.top + rect.height / 2
-                    }};
-                }})();
-            """)
-            
-            if not pos:
-                print("无法获取位置")
+            # 获取滑块元素
+            slider = await page.select(f"#{slider_id}")
+            if not slider:
+                print(f"找不到滑块: {slider_id}")
                 return False
             
-            # 解析返回的数据
-            x = None
-            y = None
+            # 使用 attrs 属性获取
+            current_value = int(slider.attrs.get("data-start", 0))
+            min_val = int(slider.attrs.get("data-min", 0))
+            max_val = int(slider.attrs.get("data-max", 0))
+            step = int(slider.attrs.get("data-step", 0))
             
-            if isinstance(pos, list):
-                for item in pos:
-                    if len(item) >= 2:
-                        key = item[0]
-                        value_obj = item[1]
-                        if isinstance(value_obj, dict) and 'value' in value_obj:
-                            value = value_obj['value']
-                            if key == 'x':
-                                x = value
-                            elif key == 'y':
-                                y = value
-            elif isinstance(pos, dict):
-                x = pos.get('x')
-                y = pos.get('y')
+            # print(f"当前值: {current_value}, 目标值: {target_value}")
             
-            if x is None or y is None:
-                print(f"无法解析坐标: x={x}, y={y}")
-                return False
+            # 确保目标值在范围内
+            if target_value < min_val:
+                target_value = min_val
+            if target_value > max_val:
+                target_value = max_val
             
-            # print(f"点击位置: ({x:.0f}, {y:.0f})")
+            # 计算需要点击的次数
+            diff = target_value - current_value
+            clicks = abs(int(diff / step))
             
-            # 使用 nodriver 的 mouse_click
-            await page.mouse_click(x, y)
+            if clicks == 0:
+                # print(f"已经是目标值: {target_value}")
+                return True
             
-            # print(f"点击完成，目标值: {target_value}")
-            # print("等待5秒...")
-            await asyncio.sleep(5)
+            # 选择按钮
+            if diff < 0:
+                btn_selector = f"[data-less='{slider_id}']"
+                btn_text = "less"
+            else:
+                btn_selector = f"[data-more='{slider_id}']"
+                btn_text = "more"
+            
+            # print(f"需要点击 {btn_text} {clicks} 次")
+            
+            # 点击
+            for i in range(clicks):
+                btn = await page.select(btn_selector, timeout=5)
+                if not btn:
+                    print(f"找不到按钮: {btn_selector}")
+                    return False
+                
+                await btn.click()
+                # print(f"点击 {btn_text} ({i+1}/{clicks})")
+                await asyncio.sleep(0.2)
+            
+            # print(f"设置完成: {slider_id} -> {target_value}")
+            await asyncio.sleep(0.5)
             
             return True
             
         except Exception as e:
-            print(f"点击失败: {e}")
+            print(f"失败 {slider_id}: {e}")
             import traceback
             traceback.print_exc()
             return False
+       
 
     @task_retry(max_retry_count=5)
     async def fillForm(self):
         addLogFile("inputDicOri_fillForm", self.inputDicOri)
         '''
-        {'id': 1, 'ENTITY': 'UNICREDIT', 'total_amount': 4000, 'ON_OFF': 1}
+        {'id': 127, 'ENTITY': 'FIDITALIA', 'total_amount': 3000, 
+        'rate': -1, 'PURPOSE': '-1', 'duration': 24, 'ON_OFF': 1}
         '''
         page = self.page
         if page is None:
             raise Exception("page is None")
-
         await asyncio.sleep(2)
         try:
             acceptCookieBtn = await page.find(
-                f'//button[contains(text(),"Accetta tutti i cookie")]'
+                f'//button[contains(text(),"Accetta tutti")]'
             )
             await acceptCookieBtn.mouse_click()
 
@@ -183,53 +182,64 @@ class GetListScraper:
             await page.wait_for_load_state("networkidle", timeout=60)
         except:
             pass
-        
-        altriImportiBtn = await page.find(
-            '//label[@for="amount_other-amount"]/..'
-        )
-        await altriImportiBtn.mouse_click()
-
         total_amount_int = self.inputDicOri['total_amount']
         # total_amount_int = 30000 
         addLogFile("total_amount_value", str(total_amount_int))
-        await self.set_slider_value(page,total_amount_int)
+        await self.set_slider_value(page,"amounts", total_amount_int)
+        duration_int = self.inputDicOri['duration']
+        await self.set_slider_value(page,"payments", duration_int)
 
+        await asyncio.sleep(1)
+
+        continueBtn = await page.find('//a[@aria-label="Fidiamo continua"]')
+        await continueBtn.mouse_click()
+    
+        '''
         await asyncio.sleep(2)
+        pdf_data = []
+                
         
-        for n in range(5):
-            decreaseBtn = await page.find('(//*[@aria-label="diminuisci importo rata"])[2]')
-            await decreaseBtn.mouse_click()
-            await asyncio.sleep(0.5)
-       
-        while True:
-            while True:
-                contentPSel = await page.find('(//p[contains(text(), "Annuncio pubblicitario con finalità promozionale")])[2]/..')
-                contentPSelClassName = contentPSel.attrs['class_']
-                if "verticalpp_disclaimer__FhXEo verticalpp_opaque__H_HKE" not in contentPSelClassName:
-                    break
+        downloadBtn = await page.find('//a[@id="generateSecciBtn"]')
+        await downloadBtn.mouse_click()
 
-                await asyncio.sleep(0.5)
-            
-
-            contentPText = contentPSel.text_all
-            await self.getDetails(contentPText)
-            addLogFile("text_all", contentPText)
-            increaseBtn = await page.find('(//*[@aria-label="aumenta importo rata"])[2]')
-            addLogFile('attrs', increaseBtn.attrs)
-            className = increaseBtn.attrs['class_']
-            if 'disabled' in className:
-                break
-            await increaseBtn.mouse_click()
-            
         await asyncio.sleep(2)
-        return
+        tabs = self.br.tabs
+        pdf_tab = tabs[-1]  # 最新打开的标签页
 
-    async def getDetails(self, contentPText):
+        print(f"📄 切换到最新标签页")
+        await pdf_tab.activate()
+        await asyncio.sleep(1)
+       
+        await pdf_tab.set_download_path('./downloads')
+
+        url = await pdf_tab.evaluate("window.location.href")
+        input_id = self.inputDicOri['id']
+        nowTimez = datetime.now().strftime("Y%m%d%H%M%S")
+        pdfName = f"FIDITALIA_INPUT{input_id}{nowTimez}.pdf"
+        await pdf_tab.download_file(url, filename=pdfName)
+        
+        print("✅ PDF已下载")
+        '''
+        await asyncio.sleep(1)
+        await self.getDetails() 
+
+        
+
+
+        # addLogtoFile('testPdf', testPdf, True)
+        
+        await asyncio.sleep(2)
+        return 
+
+
+    async def getDetails(self):
         willContinue = False
         errStr = ""
         page = self.page
         if page is None:
             raise Exception("page is None")
+
+
 
         outputDic = {}
         errStr = ""
@@ -275,16 +285,25 @@ class GetListScraper:
         TS35 = None
         TS36 = None
         TS37 = None
- 
-        TS01 = contentPText.split('prestito personale del valore di €')[1].split(",00")[0].replace('.','').strip()
-        TS17 = contentPText.split(',00 da restituire in')[1].split("rate mensili ognuna")[0].replace('.','').strip()
-        TS35 = contentPText.split('importo totale dovuto dal consumatore €')[1].split(". TAN")[0].replace('.','').strip()
-        TS07 = contentPText.split('. TAN')[1].split("%")[0].replace('.','').strip()
-        TS09 = contentPText.split('- TAEG')[1].split("%")[0].replace('.','').strip()
-        TS20 = contentPText.split(', istruttoria €')[1].split(", incasso rata")[0].replace('.','').strip()
-        TS26 = contentPText.split(', incasso rata €')[1].split("cad.")[0].replace('.','').strip()
+        
+        # TS00 = "Finanziatore Fiditalia S.p.A., società finanziaria, soggetta alla vigilanza della Banca d’Italia"
+        # TS00 = "FIDITALIA"
+        allData = await page.find('input#offer2')
 
-        TS13 = contentPText.split('rate mensili ognuna di €')[1].split(", importo totale dovuto ")[0].replace('.','').strip()
+        
+
+        allDataStr = allData.attrs['value']
+        addLogFile('inputDataStr', allDataStr)
+        allDataDic = json.loads(allDataStr)
+
+        TS01 = int(allDataDic['importoRichiesto'].replace('.',''))
+        TS17 = int(allDataDic['numeroRate'])
+        TS13 = allDataDic['rata']
+        TS26 = allDataDic['incassoRata']
+        TS35 = allDataDic['importoDovuto']
+        TS07 = allDataDic['tan'].replace('%','')
+        TS09 = allDataDic['taeg'].replace('%','')
+        TS20 = allDataDic['speseIstruttoria']
 
 
         outputDic["fetching_date"] = datetime.now().strftime("%Y-%m-%d")
@@ -356,6 +375,12 @@ class GetListScraper:
                 "--disable-features=IsolateOrigins,site-per-process",
                 "--disable-site-isolation-trials",
                 
+                '--disable-features=DownloadBubble',
+                '--disable-features=DownloadLater',
+                '--safebrowsing-disable-download-protection',
+                '--disable-extensions',
+                '--disable-features=PDFViewer',  # 禁用内置PDF查看器
+
             ],
         )
         self.main_tab = await browser.get("draft:,")
@@ -364,15 +389,16 @@ class GetListScraper:
             uc.cdp.fetch.AuthRequired, self.auth_challenge_handler
         )
         await self.main_tab.send(uc.cdp.fetch.enable(handle_auth_requests=True))
+        
         await self.main_tab.maximize()
         # page = await browser.get("https://api.ipify.org?format=json")
         # await asyncio.sleep(3)
         
         self.br = browser
-        
-        urla = "https://www.santanderconsumer.it/prestito/santander"
+        urla = "https://www.fiditalia.it/prestiti/fidiamo"
         page = await asyncio.wait_for(self.br.get(urla), timeout=30)
       
+        await page.set_download_path('./downloads')
         await asyncio.sleep(3)
 
         self.br = browser
@@ -418,7 +444,7 @@ class GetListScraper:
 
 
 
-def getList(inputDicOri):
+def getList(inputDicOri, csvFileName):
     errString = ""
     addLogFile("inputDicOri", inputDicOri)
     globals_and_constants.set_value("accept-la", "it-it")
@@ -430,10 +456,6 @@ def getList(inputDicOri):
     outputList.clear()
     nowPayNr = 50
     maxPayNr = 50
-    csvFolderPath = globals_and_constants.csvFolderPath
-    nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
-    csvFileName = f"{csvFolderPath}/outputSantader{nowtime}.csv"
-
  
     for j in range(70):
         
@@ -476,9 +498,12 @@ if __name__ == "__main__":
 
     createNewFile()
     inputDicOri = {
-        'id': 1, 
-        'ENTITY': 'SANTANDER', 
-        'total_amount': 18500, 
+        'id': 127,
+        'ENTITY': 'FIDITALIA',
+        'total_amount': 3000,
+        'rate': -1,
+        'PURPOSE': '-1',
+        'duration': 24,
         'ON_OFF': 1
     }
     getList(inputDicOri)

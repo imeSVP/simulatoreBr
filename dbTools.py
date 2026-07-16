@@ -117,19 +117,22 @@ def readPersonalData():
 
 
 def readInputFromMysql(dateString: str, ON_OFF: str,bankName: str):
+    ''' 
     if bankName.lower() in 'compass':
         inputTb = globals_and_constants.dbTable["inputCompass"]
     if bankName.lower() in 'agos':
         inputTb = globals_and_constants.dbTable["inputAgos"]
-    if bankName.lower() in 'santader':
-        inputTb = globals_and_constants.dbTable["inputSantader"]
+    if bankName.lower() in 'santander':
+        inputTb = globals_and_constants.dbTable["inputSantander"]
     if bankName.lower() in 'unicredit':
         inputTb = globals_and_constants.dbTable['inputUnicredit']
-
+    '''
+    inputTb = globals_and_constants.dbTable['inputTb']
     outputTb = globals_and_constants.dbTable["outputTb"]
     query = f"""
         select zinput.* from  {inputTb} as zinput
             where zinput.ON_OFF = {ON_OFF}
+            and zinput.ENTITY = '{bankName.upper()}'
             and zinput.id not in (
                 select id_input 
                 from {outputTb} as zoutput 
