@@ -308,7 +308,7 @@ class GetListScraper:
 
         outputDic["fetching_date"] = datetime.now().strftime("%Y-%m-%d")
         outputDic["id_input"] = self.inputDicOri['id']
-        outputDic["rata_mensile"] = TS13
+        outputDic["rata_mensile"] = TS13.replace('.','')
         
         outputDic["TS00"] = TS00
         outputDic["TS01"] = TS01
