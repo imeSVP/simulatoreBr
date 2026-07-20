@@ -14,6 +14,7 @@ import getListDataCompass
 import getListDataUnicredit
 import getListDataSantader
 import getListDataFiditalia
+import getListDataBcc
 
 # pip installation import
 from fake_useragent import UserAgent
@@ -204,6 +205,38 @@ def beginFiditaliawork(workGroup, refreshFromDate):
                 continue
 
         writeToTable(csvFileName)
+def beginBCCwork(workGroup, refreshFromDate):
+    readState, inputDf = readInputFromMysql(refreshFromDate,workGroup,'bcc')
+    addLogFile("input_dataFrame", inputDf)
+    if inputDf is None:
+        addLogFile("info", "bcc inputDf is None", True)
+        return
+    
+    
+    inputDicOriList = inputDf.to_dict("records")
+    if len(inputDicOriList) == 0:
+        addLogFile("info", "bcc inputDf is None 2", True)
+        return
+        # return
+    allZData = []
+    inputCount = len(inputDicOriList)
+    for i in tqdm(range(inputCount), desc="bcc input Progress:"):
+        time.sleep(1)
+
+        addLogFile("workGroup", workGroup)
+        try:
+            stateOutput, errcode, detailsDic, csvFileName = getListDataBcc.getList(
+                inputDicOriList[i]
+            )
+
+            addLogFile("DetailsDic", detailsDic)
+        except:
+            addLogFile("getData fail", "input ID: %d" % inputDicOriList[i]["id"], True)
+            addLogFile("Error", traceback.format_exc(), True)
+            continue
+        state = False
+        writeToTable(csvFileName)
+
 '''
 def beginAgoswork(workGroup, refreshFromDate):
     
@@ -271,7 +304,10 @@ def writeToTable(csvFileName):
         if state:
             break
         if not state:
-            shutil.move(f"csvdata/{csvFileName1}", f"errfile/{csvFileName1}")
+            try:
+                shutil.move(f"csvdata/{csvFileName1}", f"errfile")
+            except:
+                pass
             addLogFile(
                 f"load csv to table fail {csvFileName}",
                 traceback.format_exc(),
@@ -291,12 +327,12 @@ def split_list(lst, m):
 def main():
     workGroup, refreshFromDate = mainInit()
 
-    # beginCompasswork(workGroup,refreshFromDate)
+    beginCompasswork(workGroup,refreshFromDate)
     # beginAgoswork(workGroup, refreshFromDate) 
-    # beginUnicrediwork(workGroup,refreshFromDate)
-    # beginSantaderwork(workGroup, refreshFromDate)
+    beginUnicrediwork(workGroup,refreshFromDate)
+    beginSantaderwork(workGroup, refreshFromDate)
     beginFiditaliawork(workGroup,refreshFromDate)
-
+    beginBCCwork(workGroup, refreshFromDate)
 if __name__ == "__main__":
     main()
 
