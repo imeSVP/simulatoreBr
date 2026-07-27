@@ -151,7 +151,7 @@ class GetListScraper:
             # repay_persent = (monthly_repayment_int - minpayStr)*100/(maxpayStr - minpayStr)
             step = 1
             n = int(100/step)
-            for i in range(n):
+            for i in range(200):
                 nowPersent = i*100 / n
                 monthly_repayment_sel = all_ranges[1]
                 await monthly_repayment_sel.apply("""
@@ -163,7 +163,7 @@ class GetListScraper:
                 """ % nowPersent)
                 nowPaySel = await page.find('(//div[@class="range-tooltip"])[2]')
                 nowPayStr = int(nowPaySel.text_all.replace('€','').replace('.','').strip())
-                addLogFile('nowPayStr', nowPayStr)
+                addLogFile('nowPayStr', f"{nowPayStr} -- {monthly_repayment_int}")
                 
                 if nowPayStr >= monthly_repayment_int:
                     self.nowPayNr = nowPayStr
