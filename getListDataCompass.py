@@ -163,7 +163,7 @@ class GetListScraper:
                 """ % nowPersent)
                 nowPaySel = await page.find('(//div[@class="range-tooltip"])[2]')
                 nowPayStr = int(nowPaySel.text_all.replace('€','').replace('.','').strip())
-                addLogFile('nowPayStr', f"{nowPayStr} -- {monthly_repayment_int}")
+                addLogFile('nowPayStr', f"{i}: {nowPayStr} -- {monthly_repayment_int}")
                 
                 if nowPayStr >= monthly_repayment_int:
                     self.nowPayNr = nowPayStr
