@@ -10,7 +10,7 @@ from dbTools import (
     readPersonalData,
 )
 import getListDataCompass
-# import getListDataAgos
+import getListDataAgos
 import getListDataUnicredit
 import getListDataSantader
 import getListDataFiditalia
@@ -237,7 +237,7 @@ def beginBCCwork(workGroup, refreshFromDate):
         state = False
         writeToTable(csvFileName)
 
-'''
+# '''
 def beginAgoswork(workGroup, refreshFromDate):
     
     nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -248,49 +248,36 @@ def beginAgoswork(workGroup, refreshFromDate):
         addLogFile("info", "agos inputDf is None", True)
         return
     
-    
     inputDicOriList = inputDf.to_dict("records")
     if len(inputDicOriList) == 0:
         addLogFile("info", "agos inputDf is None 2", True)
         return
     
-    
-    # time.sleep(10000)
     allZData = []
     inputCount = len(inputDicOriList)
-    for i in tqdm(range(inputCount), desc="agos input Progress:"):
-        time.sleep(1)
+    
+    inputSpliteList = split_list(inputDicOriList, 20)
+    
+    for inputSpliteItem in tqdm(inputSpliteList, desc="AGOS input Group:"):
+        nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
+        csvFileName = f"{csvFolderPath}/outputAgos{nowtime}.csv"
 
-        addLogFile("workGroup", workGroup)
-        try:
-            state, errcode, detailsDic = getListDataAgos.getList(
-                inputDicOriList[i]
-            )
+        for i in  tqdm(range(len(inputSpliteItem)), desc="inputSpliteItem", leave=False):
 
-            addLogFile("DetailsDic", detailsDic)
-            get_csv(detailsDic,csvFileName) 
-        except:
-            addLogFile("getData fail", "input ID: %d" % inputDicOriList[i]["id"], True)
-            addLogFile("Error", traceback.format_exc(), True)
-            continue
-    state = False
-    for n in range(5):
-        state = loadCSVtoDB(
-            csvFileName,
-            globals_and_constants.dbTable["outputTbRam"],
-            globals_and_constants.dbTable["outputTb"]
-        )
-        if state:
-            break
-        if not state:
-            shutil.move(f"csvdata/{csvFileName}", f"errfile/{csvFileName}")
-            addLogFile(
-                f"load csv to table fail {csvFileName}",
-                traceback.format_exc(),
-                True,
-            )
-            addLogFile(f"load csv to table fail", traceback.format_exc(), True)
-'''
+            try:
+                state, errcode, detailsDic = getListDataAgos.getList(
+                    inputSpliteItem[i],
+                    csvFileName
+                )
+                addLogFile("DetailsDic", detailsDic)
+            except:
+                addLogFile("getData fail", "input ID: %d" % inputDicOriList[i]["id"], True)
+                addLogFile("Error", traceback.format_exc(), True)
+                continue
+        state = False
+    
+        writeToTable(csvFileName)
+# '''
 
 def writeToTable(csvFileName):
     for n in range(5):
@@ -328,7 +315,7 @@ def main():
     workGroup, refreshFromDate = mainInit()
 
     beginCompasswork(workGroup,refreshFromDate)
-    # beginAgoswork(workGroup, refreshFromDate) 
+    beginAgoswork(workGroup, refreshFromDate) 
     beginUnicrediwork(workGroup,refreshFromDate)
     beginSantaderwork(workGroup, refreshFromDate)
     beginFiditaliawork(workGroup,refreshFromDate)

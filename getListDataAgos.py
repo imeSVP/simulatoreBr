@@ -20,8 +20,10 @@ from datetime import datetime
 import traceback
 from TimeOutZhang import timeout, task_retry
 import base64
+from image_to_text import image_to_text
 
-from ocr_italian import recognize
+from csvToolZ import get_csv
+# from ocr_italian import recognize
 
 country = "it"
 
@@ -47,12 +49,14 @@ class GetListScraper:
     detailsHrefs.clear()
     outputDic.clear()
     detalailsLink.clear()
+    csvFileName = ""
+
     @task_retry(max_retry_count=2)
-    def __init__(self, port, inputDicOri):
+    def __init__(self, port, inputDicOri,csvFileName):
         errString = ""
         self.datadomeCodez = "null"
         self.inputDicOri = inputDicOri
-
+        self.csvFileName = csvFileName
         try:
             uc.loop().run_until_complete(self.run(port))
             if self.br is None:
@@ -76,6 +80,91 @@ class GetListScraper:
 
         addLogFile("info_del", "__del__")
 
+    async def set_slider_value(self, page, slider_id, target_value):
+        """设置滑块值 - 从0%逐步增加"""
+        addLogFile("info", f"set_slider_value begin.... 目标: {target_value}")
+        try:
+            await page.wait_for(f'input#{slider_id}', timeout=10)
+            await asyncio.sleep(1)
+            
+            slider = await page.find(f'input#{slider_id}')
+            
+            # 获取范围
+            min_val = int(slider.attrs['aria-valuemin'].replace('.',''))
+            max_val = int(slider.attrs['aria-valuemax'].replace('.',''))
+            
+            addLogFile("info", f"范围: {min_val} - {max_val}")
+            
+            # 验证目标值
+            if target_value < min_val:
+                target_value = min_val
+            if target_value > max_val:
+                target_value = max_val
+            
+            # 获取滑块物理范围
+            slider_min = int(slider.attrs['min'])
+            slider_max = int(slider.attrs['max'])
+            
+            # 先归零
+            addLogFile("info", "🔄 先归零...")
+            await page.evaluate(f"""
+                (function() {{
+                    const slider = document.getElementById('{slider_id}');
+                    if (!slider) return;
+                    
+                    slider.value = {slider_min};
+                    slider.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    slider.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                }})()
+            """)
+            
+            await asyncio.sleep(0.5)
+            
+            # 从 1% 到 200%
+            addLogFile("info", f"🔄 从 1% 逐步增加...")
+            
+            for i in range(1, 201):  # 1% 到 200%
+                # 计算当前百分比对应的滑块值
+                percent = i / 100  # 1% = 0.01, 200% = 2.0
+                current_slider_value = round(slider_min + (slider_max - slider_min) * min(percent, 1.0))
+                
+                # 设置滑块值
+                await page.evaluate(f"""
+                    (function() {{
+                        const slider = document.getElementById('{slider_id}');
+                        if (!slider) return;
+                        
+                        slider.value = {current_slider_value};
+                        slider.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        slider.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    }})()
+                """)
+                
+                await asyncio.sleep(0.05)
+                
+                # 获取当前 valuenow
+                slider = await page.find(f'input#{slider_id}')
+                current_value = int(slider.attrs['aria-valuenow'].replace('.',''))
+                
+                # 每10步打印一次
+                if i % 10 == 0 or i == 1:
+                    addLogFile("info", f"  {i}%: 当前值={current_value}")
+                
+                # 如果达到目标值，停止
+                if current_value >= target_value:
+                    addLogFile("info", f"✅ 达到目标: {current_value} >= {target_value} (在 {i}% 位置)")
+                    break
+            
+            # 最终验证
+            slider = await page.find(f'input#{slider_id}')
+            final_value = int(slider.attrs['aria-valuenow'].replace('.',''))
+            addLogFile("info", f"✅ 设置完成: {final_value}")
+            return True
+            
+        except Exception as e:
+            addLogFile('err_info', traceback.format_exc(), True)
+            return False
+
 
     @task_retry(max_retry_count=2)
     async def fillForm(self):
@@ -91,7 +180,7 @@ class GetListScraper:
         try:
             acceptCookieBtn = await page.find(
                 f'//button/span[contains(text(),"Accetta tutti i cookie")]',
-                timeout=5 
+                timeout=20 
             )
             await acceptCookieBtn.click()
 
@@ -101,57 +190,18 @@ class GetListScraper:
         # all_ranges = await self.page.find_all('input#range')
 
         # addLogFile("all_ranges_lenth", len(all_ranges))
-        total_amount_sel = await page.find('input#range-slider-amount')
+        # total_amount_sel = await page.find('input#range-slider-amount')
         # await total_amount_sel.set_value('50.00')
         #
-        
+         
+        await asyncio.sleep(2)
         total_amount_int = int(self.inputDicOri['total_amount'])
+        addLogFile('info'," begin set_slider_value total_amount")
+        await self.set_slider_value(page,'range-slider-amount', total_amount_int)
         
-        total_amount_persent = (total_amount_int-500)/295
-        
-        await total_amount_sel.apply("""
-            (elem) => {
-                elem.value = '%s';
-                elem.dispatchEvent(new Event('input', { bubbles: true }));
-                elem.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        """ % total_amount_persent)
-
-        mindurationSel = await page.find('//div[@data-id="n-min-rate"]')
-        mindurationStr = int(mindurationSel.text.replace(".","").replace("rate","").strip())
-        addLogFile('mindurationStr', mindurationStr)
-        
-
-        maxdurationSel = await page.find('//div[@data-id="n-max-rate"]')
-        maxdurationStr = int(maxdurationSel.text.replace(".","").replace("rate","").strip())
-
-        addLogFile('maxdurationStr', maxdurationStr)
-        
+        await asyncio.sleep(5)
         durationint = int(self.inputDicOri['duration'])
-        if maxdurationStr == mindurationStr:
-            duration_persent = 0
-        else:
-            duration_persent = (durationint - mindurationStr)*100/(maxdurationStr - mindurationStr)
-        
-        duration_sel = await page.find('input#range-slider-rate')
-        await duration_sel.apply("""
-            (elem) => {
-                elem.value = '%s';
-                elem.dispatchEvent(new Event('input', { bubbles: true }));
-                elem.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        """ % duration_persent)
-        
-        '''
-        purpose_sel = await page.find('//div[@class="select-button"]')
-        await purpose_sel.mouse_click()
-
-        await asyncio.sleep(1)
-        purpose_str = self.inputDicOri['PURPOSE']
-        # purpose_str = "Acquisto beni per la casa"
-        purpose_li = await page.find(f'//li/span[contains(text(),"{purpose_str}")]')
-        await purpose_li.click()
-        '''
+        await self.set_slider_value(page,'range-slider-rate', durationint)
 
         await asyncio.sleep(2)
         submitBtn = await page.find('a#btn-goto-form')
@@ -222,7 +272,7 @@ class GetListScraper:
         TS36 = None
         TS37 = None
         await asyncio.sleep(5)
-        img_elements = await page.find_all('//div[@id="img-secci"]/img', timeout = 10)
+        img_elements = await page.find_all('//div[@id="img-secci"]/img', timeout = 60)
         addLogFile('img_elements', len(img_elements))
         for i, elem in enumerate(img_elements):
             # 获取 src 属性
@@ -238,75 +288,78 @@ class GetListScraper:
                 img_data = base64.b64decode(encoded)
                 
                 # 保存为文件
-                with open(f'image_{i}.png', 'wb') as f:
-                    f.write(img_data)
-                print(f'img saved: image_{i}.png')
+                                
+                if i in [0,1]:
+                    with open(f'image_{i}.png', 'wb') as f:
+                        f.write(img_data)
+                    print(f'img saved: image_{i}.png')
 
-                test = recognize(f'image_{i}.png')
-                addLogFile(f'image_{i}.png', test)
+                    text = await asyncio.to_thread(
+                        image_to_text,
+                        f'image_{i}.png'
+                    )
+                    addLogFile(f'image_{i}.png', text)
+
+                    if i == 0:
+                        TS01 = text.split("Importo totale del credito")[1]\
+                            .split(",00")[0]\
+                            .replace('\n', ' ').replace('Euro',"")\
+                            .replace('.','').strip()
+                        addLogFile("TS01", TS01, True)
+                        
+                        TS13 = text.split("Importo Rata")[1]\
+                            .split("Numero Rate")[0]\
+                            .replace('\n', ' ').replace('Euro',"")\
+                            .replace('.','').strip()
+
+                        addLogFile("TS13", TS13, True)
+                        
+                        TS17 = text.split("Numero Rate")[1]\
+                            .split("Periodicita' Mensile")[0]\
+                            .replace('\n', ' ').strip()
+
+                        addLogFile("TS17", TS17, True)
+
+                        TS35 = text.split("Importo totale dovuto dal consumatore")[1]\
+                            .split("Importo del capitale preso")[0]\
+                            .replace('\n', ' ').replace('Euro',"")\
+                            .replace('.','').strip()
+
+                        addLogFile("TS35", TS35, True)
+
+                        TS07 = text.split("Tasso di interesse o (se applicabile) tassi di interesse diversi che si applicano")[1]\
+                            .split("al contratto di credito")[0]\
+                            .replace('TAN','').replace('%','')\
+                            .replace('\n', ' ').strip()
+
+                        addLogFile("TS07", TS07, True)
+                        TS09 = text.split("Tasso annuo effettivo globale (TAEG)")[1]\
+                            .split("Costo totale del credito espresso in percentuale")[0]\
+                            .replace('TAEG','').replace('%','')\
+                            .replace('\n', ' ').strip()
+
+                        addLogFile("TS09", TS09, True)
+
+                    if i == 1:
+                        TS23 = text.split("Spesa mensile gestione pratica")[1]\
+                            .split("Imposta")[0]\
+                            .replace('\n', ' ').replace('Euro',"")\
+                            .replace('.','').strip()
+                        addLogFile("TS23", TS23, True)
+
+                        TS20 = text.split("Costi attivita' istruttoria")[1]\
+                            .split("\n")[2]\
+                            .replace('\n', ' ').replace('Euro',"")\
+                            .replace('.','').strip()
+                        addLogFile("TS20", TS20, True)
 
 
-        return
- 
-
-        TS01Sel = await page.find('//span[contains(text(),"Importo totale credito:")]/..', timeout=2)
-        TS01 = TS01Sel.text_all.split(":")[1].replace("€","").strip()
-         
-        TS3334Sel = await page.find('//span[contains(text(),"Importo totale dovuto:")]/..', timeout=2)
-        TS33 = TS3334Sel.text_all.split('da MIN')[1].split(' € a MAX')[0].strip()
-        TS34 = TS3334Sel.text_all.split(' € a MAX')[1].replace("€","").strip()
-
-        
-        TS0304Sel = await page.find(f'//span[contains(text(),"TAN:")]/..', timeout=2)
-        TS03 = TS0304Sel.text_all.split('da MIN')[1].split('a MAX')[0].replace("%","").strip()
-        TS04 = TS0304Sel.text_all.split('a MAX')[1].replace("%","").strip()
-
-        TS0506Sel = await page.find(f'//span[contains(text(),"TAEG:")]/..', timeout=2)
-        TS05 = TS0506Sel.text_all.split('da MIN ')[1].split('a MAX')[0].replace("%","").strip()
-        TS06 = TS0506Sel.text_all.split('a MAX')[1].replace("%","").strip()
-
-         
-        TS1112Sel = await page.find(f'//span[contains(text(),"Importo rata:")]/..', timeout=2)
-        TS11 = TS1112Sel.text_all.split("nell'intervallo tra")[1].split('(per durata pari a ')[0].replace("€","").strip()
-        TS12 = TS1112Sel.text_all.split(' mesi) e')[1].split('(per durata pari a ')[0].replace("€","").strip()
-
-         
-        TS1819Sel = await page.find(f'//span[contains(text(),"Spese di istruttoria finanziate:")]/..', timeout=2)
-        addLogFile("TS1819Sel", TS1819Sel.text_all)
-        if 'da' in TS1819Sel.text_all:
-            TS18 = TS1819Sel.text_all.split("da")[1].split('€ a')[0].replace("€","").strip()
-            TS19 = TS1819Sel.text_all.split(' a')[1].replace("€","").strip()
-        else:
-            TS18 = TS1819Sel.text_all.split(":")[1].replace("€","").strip()
-            TS19 = TS1819Sel.text_all.split(":")[1].replace("€","").strip()
-         
-        TS2425Sel = await page.find(f'//span[contains(text(),"Commissioni di incasso e gestione pratica")]/..', timeout=2)
-        if 'da' in TS2425Sel.text_all:
-            TS24 = TS2425Sel.text_all.split("da")[1].split(' a')[0].replace("€","").strip()
-            TS25 = TS2425Sel.text_all.split(' a')[1].replace("€","").replace("rata;","").strip()
-        else:
-            TS24 = TS2425Sel.text_all.split(":")[1].replace("€","").replace("rata;","").strip()
-            TS25 = TS2425Sel.text_all.split(":")[1].replace("€","").replace("rata;","").strip()
-
-        TS15165Sel = await page.find(f'//span[contains(text(),"Durata totale del finanziamento:")]/..', timeout=2)
-        if 'da' in TS15165Sel.text_all:
-            TS15 = TS15165Sel.text_all.split("da MIN")[1].split('a MAX')[0].split('mese')[0].replace("mesi","").strip()
-            TS16 = TS15165Sel.text_all.split('a MAX')[1].split('mese')[0].replace("mesi","").strip()
-        else:
-            TS15 = TS15165Sel.text_all.split(":")[1].replace("mese","").replace("mesi","").replace(";","").strip()
-            TS16 = TS15165Sel.text_all.split(":")[1].replace("mese","").replace("mesi","").replace(";","").strip()
-
-        TS27282930Sel = await page.find(f'//span[contains(text(),": TAN min")]', timeout=2)
-        TS27 = TS27282930Sel.text_all.split(": TAN min")[1].split("TAN max")[0].replace("%","").strip()
-        TS28 = TS27282930Sel.text_all.split("TAN max")[1].split("TAEG min")[0].replace("%","").strip()
-
-        TS29 = TS27282930Sel.text_all.split("TAEG min")[1].split("TAEG max")[0].replace("%","").strip()
-        TS30 = TS27282930Sel.text_all.split("TAEG max")[1].split(".")[0].replace("%","").strip()
 
 
         outputDic["fetching_date"] = datetime.now().strftime("%Y-%m-%d")
         outputDic["id_input"] = self.inputDicOri['id']
         
+        outputDic["rata_mensile"] = TS13.replace('.','')
         outputDic["TS00"] = TS00
         outputDic["TS01"] = TS01
         outputDic["TS02"] = TS02
@@ -354,6 +407,7 @@ class GetListScraper:
 
 
 
+        get_csv(outputDic,self.csvFileName) 
 
 
 
@@ -430,19 +484,19 @@ class GetListScraper:
 
 
 
-def getList(inputDicOri):
+def getList(inputDicOri, csvFileName):
     errString = ""
     addLogFile("inputDicOri", inputDicOri)
     globals_and_constants.set_value("accept-la", "it-it")
     isStateOk = False
     outputDic = {}
     outputDic.clear()
-    for k in range(1):
+    for k in range(5):
 
         port = globals_and_constants.INIT_PORTS[0]
         globals_and_constants.set_value("port", port)
         try:
-            scraper = GetListScraper(port, inputDicOri)
+            scraper = GetListScraper(port, inputDicOri,csvFileName)
             # listContent = scraper.listContent
             outputDic = scraper.outputDic.copy()
             scraper.detailsHrefs.clear()
