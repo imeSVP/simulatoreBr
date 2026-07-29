@@ -305,7 +305,7 @@ def writeToTable(csvFileName):
 
 def split_list(lst, m):
     n = 8
-    if len(lst) < = 8:
+    if len(lst) <= 8:
         n = 1
     return [lst[i : i + n] for i in range(0, len(lst), n)]
 
