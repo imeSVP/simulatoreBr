@@ -311,6 +311,8 @@ class GetListScraper:
                             .split("Numero Rate")[0]\
                             .replace('\n', ' ').replace('Euro',"")\
                             .replace('.','').strip()
+                        if int(TS01) <1000:
+                            raise Exception("TS01 < 1000")
 
                         addLogFile("TS13", TS13, True)
                         
@@ -351,6 +353,8 @@ class GetListScraper:
                             .split("\n")[2]\
                             .replace('\n', ' ').replace('Euro',"")\
                             .replace('.','').strip()
+                        if len(TS20) > 10:
+                            TS20 = None
                         addLogFile("TS20", TS20, True)
 
 
