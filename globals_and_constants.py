@@ -49,7 +49,8 @@ INIT_PORTS = [1080]
 ENDPOINT = "proxy.goproxies.com"
 COUNTRY = "IT"
 USERNAME = "customer-imetrics-country-it"
-PASSWORD = "eddd26be6a43b9d6470b466ab19ef325"
+# PASSWORD = "eddd26be6a43b9d6470b466ab19ef325"
+PASSWORD = "75db612c72b8e97ccd2924264146f674"
 
 TWOCAPTCHA_KEY = '3da74b773dc0832937e86caa8e85cfff'
 
