@@ -90,7 +90,7 @@ class GetListScraper:
     async def set_range_value(self, page, target_value):
         """设置 range 滑块值"""
         try:
-            await page.wait_for("input[type='range']", timeout=10)
+            await page.wait_for("input[type='range']", timeout=30)
             await asyncio.sleep(0.5)
             
             decreaseBtn = await page.find('(//button[contains(@class,"hover:text-(--green-default)")])[2]')
