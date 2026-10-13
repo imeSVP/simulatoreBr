@@ -148,7 +148,7 @@ class GetListScraper:
 
         findMoreBtn = await page.find(
             '//a[contains(text(),"Scopri di più")]',
-            timeout=5
+            timeout=20
         )
         await findMoreBtn.mouse_click()
 
@@ -240,9 +240,16 @@ class GetListScraper:
 
             await asyncio.sleep(5)
             
-            TS17Sel = await page.find('(//div/span[text()=" mesi"])/preceding-sibling::span')
-            TS17Str = TS17Sel.text_all
-            addLogFile('TS17Str', TS17Str)
+            TS15Sel = await page.find('(//div/span[text()=" mesi"])/../span[2]')
+            TS15Str = TS15Sel.text_all
+            addLogFile('TS15Str', TS15Str)
+ 
+            TS16Sel = await page.find('(//div/span[text()=" mesi"])/../span[4]')
+            TS16Str = TS16Sel.text_all
+            addLogFile('TS16Str', TS16Str)
+
+
+            
 
             TS07Sel = await page.find('(//span[text()="TAN"])/../../../div[2]/span')
             TS07Str = TS07Sel.text_all.replace('%','').strip()
@@ -250,12 +257,15 @@ class GetListScraper:
             
             TS09Sel = await page.find('(//span[text()="TAEG"])/../../../div[2]/span')
             TS09Str = TS09Sel.text_all.replace('%','').strip()
+            
             addLogFile('TS09Str', TS09Str)
+             
             outTemp = {}
             outTemp.clear()
             outTemp['TS01'] = total_amount_int
             outTemp['TS13'] = rata_mensile_str
-            outTemp['TS17'] = TS17Str
+            outTemp['TS15'] = TS15Str
+            outTemp['TS16'] = TS16Str
             outTemp['TS07'] = TS07Str
             outTemp['TS09'] = TS09Str
 
@@ -300,9 +310,9 @@ class GetListScraper:
         TS12 = None
         TS13 = outTemp['TS13']
         TS14 = None
-        TS15 = None
-        TS16 = None
-        TS17 = outTemp['TS17']
+        TS15 = outTemp['TS15']
+        TS16 = outTemp['TS16']
+        TS17 = None
         TS18 = None
         TS19 = None
         
