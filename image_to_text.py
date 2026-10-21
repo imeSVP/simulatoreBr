@@ -1,5 +1,16 @@
+import os
+os.environ["FLAGS_use_mkldnn"] = "0"  # 禁用 OneDNN
+
 from paddleocr import PaddleOCR
 
+ocr = PaddleOCR(
+    lang='it',
+    use_angle_cls=False,
+    show_log=False,
+    use_gpu=False,
+    det_db_thresh=0.3,
+    rec_batch_num=6
+)
 
 # 全局初始化，只加载一次
 ocr = PaddleOCR(

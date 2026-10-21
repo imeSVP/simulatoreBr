@@ -308,12 +308,15 @@ i       '''
             TS15 = TS15165Sel.text_all.split(":")[1].replace("mese","").replace("mesi","").replace(";","").strip()
             TS16 = TS15165Sel.text_all.split(":")[1].replace("mese","").replace("mesi","").replace(";","").strip()
 
-        TS27282930Sel = await page.find(f'//span[contains(text(),": TAN min")]', timeout=2)
-        TS27 = TS27282930Sel.text_all.split(": TAN min")[1].split("TAN max")[0].replace("%","").strip()
-        TS28 = TS27282930Sel.text_all.split("TAN max")[1].split("TAEG min")[0].replace("%","").strip()
+        TS2728Sel = await page.find(f'(//span[contains(text(),"TAN: ")]/..)[1]', timeout=2)
+        TS27 = TS2728Sel.text_all.split("da")[1].split("a")[0].replace("%","").strip()
+        TS28 = TS2728Sel.text_all.split("a")[1].replace("%","").strip()
+ 
+        
 
-        TS29 = TS27282930Sel.text_all.split("TAEG min")[1].split("TAEG max")[0].replace("%","").strip()
-        TS30 = TS27282930Sel.text_all.split("TAEG max")[1].split(".")[0].replace("%","").strip()
+        TS2930Sel = await page.find(f'(//span[contains(text(),"TAEG: ")]/..)[1]', timeout=2)
+        TS29 = TS2930Sel.text_all.split("da")[1].split("a")[0].replace("%","").strip()
+        TS30 = TS2930Sel.text_all.split("a")[1].replace("%","").strip()
 
 
         outputDic["fetching_date"] = datetime.now().strftime("%Y-%m-%d")

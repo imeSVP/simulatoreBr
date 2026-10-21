@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+#
+
+from camoufox.async_api import AsyncCamoufox
+from playwright.async_api import Locator
 import asyncio
 from logging import exception
-import nodriver as uc
+# import nodriver as uc
 from sqlalchemy import except_
 import globals_and_constants
 import time
@@ -21,13 +25,16 @@ import traceback
 from TimeOutZhang import timeout, task_retry
 
 from csvToolZ import get_csv
+# from Update_heartbeat import update_heartbeat
+import os
+import sys
 
 
 
 country = "it"
 
 class GetListScraper:
-    main_tab: uc.Tab
+    # main_tab: uc.Tab
 
     USERNAME = globals_and_constants.USERNAME
     PASSWORD = globals_and_constants.PASSWORD
@@ -63,29 +70,19 @@ class GetListScraper:
         self.inputDicOri = inputDicOri
         self.nowPayNr = nowPayNr
         self.csvFileName = csvFileName
+        if sys.platform == 'win32':
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
         try:
-            uc.loop().run_until_complete(self.run(port))
-            if self.br is None:
-                raise Exception("self.br is null")
-            try:
-                self.br.stop()
-            except:
-                pass
-
+            asyncio.run(self.run(port))
         except:
-            if self.br is None:
-                raise Exception("self.br is null")
-            try:
-                self.br.stop()
-            except:
-                pass
             errString = f"fillFormError: {traceback.format_exc()}"
-            raise Exception(errString)
+            raise BaseException(errString)
+
 
     def __del__(self):
 
         addLogFile("info_del", "__del__")
-    
+    ''' 
     async def type_human_with_verify(self,element, value):
         """逐字符输入并验证"""
         value_str = str(value)
@@ -115,6 +112,43 @@ class GetListScraper:
         await asyncio.sleep(0.5)
        
         return
+    '''
+    async def type_human_with_verify(self, element: Locator, value):
+        """逐字符输入并验证 (Playwright / Camoufox 版本)"""
+        value_str = str(value)
+        
+        # 1. 点击元素
+        await element.click()
+        await asyncio.sleep(2)  # 保持原有的 2 秒等待
+        
+        # 2. 用 JS 清空并触发 React/Vue 事件
+        # Playwright 的 evaluate 第一个参数是 JS 表达式，第二个参数传给 JS 函数
+        await element.evaluate("""
+            (elem) => {
+                elem.focus();
+                elem.value = '';
+                // 触发 React 的 input 事件
+                const event = new Event('input', { bubbles: true });
+                elem.dispatchEvent(event);
+                // 触发 change 事件
+                const changeEvent = new Event('change', { bubbles: true });
+                elem.dispatchEvent(changeEvent);
+            }
+        """)
+        await asyncio.sleep(0.2)
+        
+        # 3. 逐字符输入
+        # 方案 A：如果你想严格控制每个字的随机延迟，继续用循环：
+        for char in value_str:
+            await element.press(char) # 或者使用 page.keyboard.type(char)
+            await asyncio.sleep(0.15)
+            
+        # 💡 方案 B (更优雅的 Playwright 自带原生仿真人类输入)：
+        # Playwright 提供了 delay 参数（单位是毫秒！），可以直接一行搞定：
+        # await element.press_sequentially(value_str, delay=150)
+        
+        await asyncio.sleep(0.5)
+        return
 
     @task_retry(max_retry_count=5)
     async def fillForm(self):
@@ -128,106 +162,199 @@ class GetListScraper:
 
         await asyncio.sleep(2)
         try:
-            acceptCookieBtn = await page.find(
-                f'//button[contains(text(),"ACCETTO TUTTI I COOKIE")]'
+            acceptCookieBtn = await page.query_selector(
+                f'xpath=//button[contains(text(),"ACCETTO TUTTI I COOKIE")]'
             )
-            await acceptCookieBtn.mouse_click()
+            await acceptCookieBtn.click(timeout=5000)
 
             await asyncio.sleep(1)
         except:
             pass
         # '''
         #
-        prestitiBtn = await page.find(
-            '//a[@href="/it/privati/prestiti.html"]',
-            timeout=5
+        prestitiBtn = await page.query_selector(
+            'xpath=//a[@href="/it/privati/prestiti.html"]',
         )
-        await prestitiBtn.mouse_click()
+        await prestitiBtn.click(timeout=5000)
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(5)
 
-        findMoreBtn = await page.find(
-            '//a[contains(text(),"Scopri di più")]',
-            timeout=20
+        findMoreBtn = await page.query_selector(
+            'xpath=//a[contains(text(),"Scopri di più")]',
         )
-        await findMoreBtn.mouse_click()
+        await findMoreBtn.click(timeout=5000)
 
-        await asyncio.sleep(2)
-        askBtn = await page.find(
-            '//a[text()="Procedi con la richiesta da qui"]',
-            timeout=5
+        await asyncio.sleep(5)
+        askBtn = await page.query_selector(
+            'xpath=//a[text()="Procedi con la richiesta da qui"]',
         )
-        await askBtn.mouse_click()
+        await askBtn.click(timeout=5000)
         
-        askOnlineBtn = await page.find(
-            '//button[text()="Richiedi Online"]',
-            timeout = 10
+        await asyncio.sleep(2)
+        askOnlineBtn = await page.query_selector(
+            'xpath=//button[text()="Richiedi Online"]',
         )
-        await askOnlineBtn.mouse_click()
-        await asyncio.sleep(20)
-        # '''
 
+
+        
+        await askOnlineBtn.click(timeout=5000)
+        #
+        # 在点击前开始监听所有响应
+        await asyncio.sleep(5)
+        # await page.reload(wait_until="domcontentloaded")
+        # await asyncio.sleep(5)
+        # '''
+        #
+        #
+        '''
+        page.goto("https://prodotti-per-te.unicredit.it/loginPublic?state=%2Fworkflow%2FCFN_V4")
+
+        await asyncio.sleep(5)
+        
+        await page.reload(wait_until="domcontentloaded")
+        await asyncio.sleep(10)  # 给页面一点反应时间
+        '''
+        '''
+        print("===== 点击后诊断 =====")
+        print("当前 URL:", page.url)
+        print("当前标题:", await page.title())
+        print("页面数量:", len(page.context.pages))
+        for i, p in enumerate(page.context.pages):
+            print(f"  标签 {i}: {p.url}")
+        print("======================")
+
+        # 直接等金额输入框出现，给它 60 秒时间
         try:
-            await page.wait_for_load_state("networkidle", timeout=60)
-        except:
-            pass
+            await page.wait_for_selector('input#requested_amount_input', timeout=60000)
+            print("✅ 金额输入框已出现，进入下一步")
+        except Exception as e:
+            print(f"❌ 等不到金额框，错误: {e}")
+            # 卡住了，先不管，看看到底停在哪
+            await asyncio.sleep(30)
+        '''
         for n_time in range(20):
             addLogFile('info', f"wait .... {n_time}")
-            total_amount_sel = await page.find(
-                '//input[@id="requested_amount_input"]',
-                timeout = 10
+            total_amount_sel = await page.query_selector(
+                'xpath=//input[@id="requested_amount_input"]',
             )
             try:
-                await total_amount_sel.mouse_click()
+                await total_amount_sel.click(timeout=5000)
                 
-                await asyncio.sleep(5)
+                # await asyncio.sleep(5)
                 break
             except:
 
                 await asyncio.sleep(5)
-                btn_ricomincia = await page.find(
-                    '//button/span[text()="Ricomincia"]',
-                    timeout =5
+                btn_ricomincia = await page.query_selector(
+                    'xpath=//button/span[text()="Ricomincia"]',
                 )
                 try:
-                    await btn_ricomincia.mouse_click()
+                    await btn_ricomincia.click(timeout=5000)
                 except:
                     pass
-                if n_time % 5 == 4:
-                    await page.reload()
+                if n_time % 4 == 3:
+
+                    # page.goto("https://prodotti-per-te.unicredit.it/loginPublic?state=%2Fworkflow%2FCFN_V4")
+                    await page.reload(wait_until="domcontentloaded")
 
 
         total_amount_int = self.inputDicOri['total_amount']
         # total_amount_int = 30000 
         addLogFile("total_amount_value", str(total_amount_int))
-         
+                 
+        await asyncio.sleep(5)
         await self.type_human_with_verify(total_amount_sel, total_amount_int)
 
         await asyncio.sleep(5)
 
-        rata_mensile_sel = await page.find(
-            '//input[@aria-label="select options"]',
-            timeout = 5
+        rata_mensile_sel = await page.query_selector(
+            'xpath=//input[@aria-label="select options"]'
         )
 
-        await rata_mensile_sel.mouse_click()
+        await rata_mensile_sel.click()
 
         await asyncio.sleep(5)
-        rata_mensile_li_list = await page.find_all(
-            '//*[@id="react-select-2-listbox"]/div'
-        )
+
+        rata_mensile_li_list = page.locator('xpath=//*[@id="react-select-2-listbox"]/div')
 
         for rata_mensile_time in range(5):
-            if "No options" in rata_mensile_li_list[0].text_all:
-                
+
+            try:
+                first_element_text = await rata_mensile_li_list.nth(0).inner_text()
+            except Exception:
+                first_element_text = ""
+
+            if "No options" in first_element_text or not first_element_text:
                 await asyncio.sleep(5)
-                rata_mensile_li_list = await page.find_all(
-                    '//div[contains(@id, "react-select-") and contains(@id, "-listbox")]'
+                # 更新定位器
+                rata_mensile_li_list = page.locator(
+                    'xpath=//div[contains(@id, "react-select-") and contains(@id, "-listbox")]'
                 )
             else:
                 break
 
-        
+        list_count = await rata_mensile_li_list.count()
+        for rata_mensile_timez in tqdm(range(list_count), desc="rate", leave=False):
+            rata_mensile_timeyz = rata_mensile_timez + 1
+            
+            # 1. 定位当前循环的下拉项并获取文本、点击
+            rata_mensile_li = page.locator(
+                f'xpath=(//div[contains(@id, "react-select-") and contains(@id, "-listbox")]/div)[{rata_mensile_timeyz}]'
+            )
+            
+            # 获取文本并清洗
+            rata_mensile_str = (await rata_mensile_li.inner_text()).replace('€', '').strip()
+            addLogFile('rata_mensile', rata_mensile_str)
+            
+            # 点击该选项
+            await rata_mensile_li.click()
+
+            # 显式等待数据刷新（保持原逻辑的 5 秒，或者建议使用后文的 wait_for 优化）
+            await asyncio.sleep(5)
+            
+            # 2. 抓取刷新后的页面数据
+            TS15Sel = page.locator('xpath=(//div/span[text()=" mesi"])/../span[2]')
+            TS15Str = await TS15Sel.inner_text()
+            addLogFile('TS15Str', TS15Str)
+
+            TS16Sel = page.locator('xpath=(//div/span[text()=" mesi"])/../span[4]')
+            TS16Str = await TS16Sel.inner_text()
+            addLogFile('TS16Str', TS16Str)
+
+            TS07Sel = page.locator('xpath=(//span[text()="TAN"])/../../../div[2]/span')
+            TS07Str = (await TS07Sel.inner_text()).replace('%', '').strip()
+            addLogFile('TS07Str', TS07Str)
+            
+            TS09Sel = page.locator('xpath=(//span[text()="TAEG"])/../../../div[2]/span')
+            TS09Str = (await TS09Sel.inner_text()).replace('%', '').strip()
+            addLogFile('TS09Str', TS09Str)
+            
+            # 3. 组装数据并输出
+            outTemp = {}
+            # outTemp.clear() # 字典刚定义，无需 clear
+            outTemp['TS01'] = total_amount_int
+            outTemp['TS13'] = rata_mensile_str
+            outTemp['TS15'] = TS15Str
+            outTemp['TS16'] = TS16Str
+            outTemp['TS07'] = TS07Str
+            outTemp['TS09'] = TS09Str
+
+            await self.getDetails(outTemp)
+            # 1. 定位元素（Playwright 的 locator 是惰性的，这一步不需要 await 和 timeout）
+            rata_mensile_sel = page.locator('xpath=//input[@aria-label="select options"]')
+
+            # 2. 点击元素（在操作时传入 timeout，单位为毫秒，5秒对应 5000）
+            # Playwright 会自动等待元素可见并处于可点击状态（Actionability）
+            await rata_mensile_sel.click(timeout=5000)
+
+            # 3. 保持原逻辑的固定等待
+            await asyncio.sleep(5)
+
+
+
+
+        '''
+         
         for rata_mensile_timez in tqdm(range(len(rata_mensile_li_list)), desc="rate", leave=False):
             rata_mensile_timeyz = rata_mensile_timez + 1
             rata_mensile_li = await page.find(
@@ -280,7 +407,9 @@ class GetListScraper:
             await rata_mensile_sel.mouse_click()
 
             await asyncio.sleep(5)
-        await asyncio.sleep(30)
+
+        '''
+        await asyncio.sleep(3)
 
         return
 
@@ -385,15 +514,50 @@ class GetListScraper:
 
         # addLogFile('outputDic', outputDic)
         self.outputDic = outputDic
-        get_csv(outputDic,self.csvFileName) 
+        get_csv(outputDic,self.csvFileName)
+        await self.context.close()
 
 
 
 
+    async def brInit(self, port):
+        target_url = "https://www.unicredit.it/"
+        context = await self.br.new_context(
+            locale="it-IT",
+            timezone_id="Europe/Rome"  # 强制锁定罗马时区，斩断时区差引发的 Bot 标记
+        )
+        context = await self.br.new_context(
+            locale="it-IT",
+            timezone_id="Europe/Rome"  # 强制锁定罗马时区，斩断时区差引发的 Bot 标记
+        )
+        page = await context.new_page()
+
+        # await context.clear_cookies()
+        # await page.evaluate("() => { localStorage.clear(); sessionStorage.clear(); }")
+        # await page.goto("about:blank") # 彻底切断之前的页面状态
+        # addLogFile("info",f"====== 2. 正在通过域名代理跨越 DataDome 边界: {target_url} ======")
+        
+        await page.goto('https://api.ipify.org?format=json')
+
+        await asyncio.sleep(4)
+        # 发起请求。由于经过海外住宅网络域名路由，我们将超时时间放宽至 35 秒以应对国际链路抖动
+        await page.goto(target_url, wait_until="domcontentloaded", timeout=35000)
+        
+        # 成功进站后，给予探针 JavaScript 4 秒的数据比对与信任刷新时间
+        
+        title = await page.title()
+        current_url = page.url
+        content = await page.content()
+        self.context = context
+        self.page = page
+        # await asyncio.sleep(400)
+
+        
+        
 
 
 
-
+    '''
     async def brInit(self, port):
         user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
         PROXY = f"{globals_and_constants.ENDPOINT}:{port}"
@@ -432,40 +596,28 @@ class GetListScraper:
         errString = ""
 
         self.page = page
-
+    '''
     async def run(self, port):
-        await asyncio.wait_for(self.brInit(port), timeout=20)
-        await asyncio.wait_for(self.fillForm(), timeout=600)
-        fillFormState = True
-        # await asyncio.sleep(2000)
-        # await self.getDetails()
-        await self.page.close()
-        # await self.br.quit()
-        self.br.stop()
 
-    async def auth_challenge_handler(self, event: uc.cdp.fetch.AuthRequired):
-        # Split the credentials
-        # Respond to the authentication challenge
-        asyncio.create_task(
-            self.main_tab.send(
-                uc.cdp.fetch.continue_with_auth(
-                    request_id=event.request_id,
-                    auth_challenge_response=uc.cdp.fetch.AuthChallengeResponse(
-                        response="ProvideCredentials",
-                        username=self.USERNAME,
-                        password=self.PASSWORD,
-                    ),
-                )
-            )
-        )
+        proxy_config = {
+            "server": f"http://{globals_and_constants.ENDPOINT}:{port}",
+            "username": globals_and_constants.USERNAME,
+            "password": globals_and_constants.PASSWORD
+        }
+        addLogFile("info", "====== 1. [完美域名合体] 正在初始化 Camoufox 内核并绑定住宅代理 ======")
 
-    async def req_paused(self, event: uc.cdp.fetch.RequestPaused):
-        asyncio.create_task(
-            self.main_tab.send(
-                uc.cdp.fetch.continue_request(request_id=event.request_id)
-            )
-        )
-
+        async with AsyncCamoufox(
+            headless=False,             # Windows Server 上可直接开启高效后台无头模式
+            proxy=proxy_config,         # 绑定您提供的有密住宅代理
+            os="windows",               # 模拟的用户操作系统指纹，与您的宿主机完美共鸣
+            geoip=True,                 # 根据代理 IP 自动下发同步意大利当地时区、语言环境
+            humanize=True,
+            block_images=False,         # 必须保持图片加载，用以通过 DataDome 隐式的画布图形校验
+        ) as browser:
+            self.br = browser 
+            await asyncio.wait_for(self.brInit(port), timeout=20)
+            await asyncio.wait_for(self.fillForm(), timeout=600)
+            fillFormState = True
 
 
 
@@ -535,4 +687,10 @@ if __name__ == "__main__":
         'PURPOSE': 'Spese Familiari', 
         'ON_OFF': 1
     }
-    getList(inputDicOri)
+    for i in range(5):
+        
+        try:
+            getList(inputDicOri)
+            break
+        except:
+            pass

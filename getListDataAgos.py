@@ -213,7 +213,7 @@ class GetListScraper:
         # await asyncio.sleep(100)
         btn_stampa_secci = None
         try:
-            btn_stampa_secci = await page.find('a#stampa-secci', timeout=10)
+            btn_stampa_secci = await page.find('a#stampa-secci', timeout=30)
             await btn_stampa_secci.mouse_click()
         except:
 

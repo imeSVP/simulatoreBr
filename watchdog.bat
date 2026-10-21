@@ -1,7 +1,7 @@
 @echo off
 chcp 437 >nul
 
-
+cd C:\e\simulatoreBr
 
 :: 使用WMIC获取标准日期时间
 for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
@@ -10,7 +10,7 @@ for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set da
 set today=%datetime:~0,4%-%datetime:~4,2%-%datetime:~6,2%
 
 set workGroup=1
-set date_z=2026-07-20
+set date_z=2026-10-20
 set heartbeat_file=heartbeat_%workGroup%.txt
 set max_idle=240
 set check_interval=5
