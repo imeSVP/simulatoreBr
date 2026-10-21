@@ -314,9 +314,9 @@ i       '''
  
         
 
-        TS2930Sel = await page.find(f'(//*[contains(text(),"TAEG: ")]/..)[1]', timeout=2)
-        TS29 = TS2930Sel.text_all.split("da")[1].split("a")[0].replace("%","").strip()
-        TS30 = TS2930Sel.text_all.split(" a")[1].replace("%","").strip()
+        TS2930Sel = await page.find(f'(//span[contains(text(),"TAEG: ")]/..)[1]', timeout=2)
+        TS29 = TS2930Sel.text_all.split("MIN ")[1].split("a MAX")[0].replace("%","").strip()
+        TS30 = TS2930Sel.text_all.split("a MAX")[1].replace("%","").strip()
 
 
         outputDic["fetching_date"] = datetime.now().strftime("%Y-%m-%d")
