@@ -314,9 +314,9 @@ def split_list(lst, m):
 def main():
     workGroup, refreshFromDate = mainInit()
 
-    beginCompasswork(workGroup,refreshFromDate)
     beginAgoswork(workGroup, refreshFromDate) 
-    beginUnicrediwork(workGroup,refreshFromDate)
+    beginCompasswork(workGroup,refreshFromDate)
+    # beginUnicrediwork(workGroup,refreshFromDate)
     beginSantaderwork(workGroup, refreshFromDate)
     beginFiditaliawork(workGroup,refreshFromDate)
     beginBCCwork(workGroup, refreshFromDate)

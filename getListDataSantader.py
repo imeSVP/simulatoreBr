@@ -203,7 +203,7 @@ class GetListScraper:
        
         while True:
             while True:
-                contentPSel = await page.find('(//p[contains(text(), "Annuncio pubblicitario con finalità promozionale")])[2]/..')
+                contentPSel = await page.find('(//p[contains(text(), "Annuncio pubblicitario con finalit")])[2]/..')
                 contentPSelClassName = contentPSel.attrs['class_']
                 if "verticalpp_disclaimer__FhXEo verticalpp_opaque__H_HKE" not in contentPSelClassName:
                     break
@@ -276,15 +276,15 @@ class GetListScraper:
         TS36 = None
         TS37 = None
  
-        TS01 = contentPText.split('prestito personale del valore di €')[1].split(",00")[0].replace('.','').strip()
+        TS01 = contentPText.split('prestito personale del valore di')[1].split(",00")[0].replace('.','').replace("?","").replace("€","").strip()
         TS17 = contentPText.split(',00 da restituire in')[1].split("rate mensili ognuna")[0].replace('.','').strip()
-        TS35 = contentPText.split('importo totale dovuto dal consumatore €')[1].split(". TAN")[0].replace('.','').strip()
+        TS35 = contentPText.split('importo totale dovuto dal consumatore')[1].split(". TAN")[0].replace('.','').replace("?","").replace("€","").strip()
         TS07 = contentPText.split('. TAN')[1].split("%")[0].replace('.','').strip()
         TS09 = contentPText.split('- TAEG')[1].split("%")[0].replace('.','').strip()
-        TS20 = contentPText.split(', istruttoria €')[1].split(", incasso rata")[0].replace('.','').strip()
-        TS26 = contentPText.split(', incasso rata €')[1].split("cad.")[0].replace('.','').strip()
+        TS20 = contentPText.split(', istruttoria')[1].split(", incasso rata")[0].replace('.','').replace("?","").replace("€","").strip()
+        TS26 = contentPText.split(', incasso rata')[1].split("cad.")[0].replace('.','').replace("?","").replace("€","").strip()
 
-        TS13 = contentPText.split('rate mensili ognuna di €')[1].split(", importo totale dovuto ")[0].replace('.','').strip()
+        TS13 = contentPText.split('rate mensili ognuna di')[1].split(", importo totale dovuto ")[0].replace('.','').replace("?","").replace("€","").strip()
 
 
         outputDic["fetching_date"] = datetime.now().strftime("%Y-%m-%d")

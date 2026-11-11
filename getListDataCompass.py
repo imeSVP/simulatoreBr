@@ -107,10 +107,10 @@ class GetListScraper:
             await asyncio.sleep(1)
         except:
             pass
-        all_ranges = await self.page.find_all('input#range')
+        # all_ranges = await self.page.find_all('input#range')
 
-        addLogFile("all_ranges_lenth", len(all_ranges))
-        total_amount_sel = all_ranges[0]
+        # addLogFile("all_ranges_lenth", len(all_ranges))
+        total_amount_sel = await self.page.find('input#loan')
         # await total_amount_sel.set_value('50.00')
         #
         
@@ -153,7 +153,7 @@ class GetListScraper:
             n = int(100/step)
             for i in range(200):
                 nowPersent = i*100 / n
-                monthly_repayment_sel = all_ranges[1]
+                monthly_repayment_sel = await self.page.find('#installment')
                 await monthly_repayment_sel.apply("""
                     (elem) => {
                         elem.value = '%s';
@@ -187,16 +187,28 @@ class GetListScraper:
                 elem.dispatchEvent(new Event('change', { bubbles: true }));
             }
         """ % repay_persent)
-i       '''
-        purpose_sel = await page.find('//div[@class="select-button"]')
+        '''
+        purpose_sel = await page.find('button#loan-purpose')
         await purpose_sel.mouse_click()
 
         await asyncio.sleep(1)
         purpose_str = self.inputDicOri['PURPOSE']
         # purpose_str = "Acquisto beni per la casa"
         purpose_li = await page.find(f'//li/span[contains(text(),"{purpose_str}")]')
-        await purpose_li.click()
+        try:
+            await purpose_li.click()
+        except:
+            closebtn = await page.find('//button[@aria-label="Close modal"]')
+            await closebtn.click()
 
+            await asyncio.sleep(1)
+            purpose_sel = await page.find('button#loan-purpose')
+            await purpose_sel.mouse_click()
+
+            await asyncio.sleep(1)
+
+            purpose_li = await page.find(f'//li/span[contains(text(),"{purpose_str}")]')
+            await purpose_li.click()
         submitBtn = await page.find('//button/p[text()="CONTINUA"]')
         await submitBtn.mouse_click()
 
