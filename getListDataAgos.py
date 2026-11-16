@@ -292,7 +292,7 @@ class GetListScraper:
                 if i in [0,1]:
                     with open(f'image_{i}.png', 'wb') as f:
                         f.write(img_data)
-                    print(f'img saved: image_{i}.png')
+                    # print(f'img saved: image_{i}.png')
 
                     text = await asyncio.to_thread(
                         image_to_text,
@@ -305,7 +305,7 @@ class GetListScraper:
                             .split(",00")[0]\
                             .replace('\n', ' ').replace('Euro',"")\
                             .replace('.','').strip()
-                        addLogFile("TS01", TS01, True)
+                        addLogFile("TS01", TS01)
                         
                         TS13 = text.split("Importo Rata")[1]\
                             .split("Numero Rate")[0]\
@@ -314,40 +314,40 @@ class GetListScraper:
                         if int(TS01) <1000:
                             raise Exception("TS01 < 1000")
 
-                        addLogFile("TS13", TS13, True)
+                        addLogFile("TS13", TS13)
                         
                         TS17 = text.split("Numero Rate")[1]\
                             .split("Periodicita' Mensile")[0]\
                             .replace('\n', ' ').strip()
 
-                        addLogFile("TS17", TS17, True)
+                        addLogFile("TS17", TS17)
 
                         TS35 = text.split("Importo totale dovuto dal consumatore")[1]\
                             .split("Importo del capitale preso")[0]\
                             .replace('\n', ' ').replace('Euro',"")\
                             .replace('.','').strip()
 
-                        addLogFile("TS35", TS35, True)
+                        addLogFile("TS35", TS35)
 
                         TS07 = text.split("Tasso di interesse o (se applicabile) tassi di interesse diversi che si applicano")[1]\
                             .split("al contratto di credito")[0]\
                             .replace('TAN','').replace('%','')\
                             .replace('\n', ' ').strip()
 
-                        addLogFile("TS07", TS07, True)
+                        addLogFile("TS07", TS07)
                         TS09 = text.split("Tasso annuo effettivo globale (TAEG)")[1]\
                             .split("Costo totale del credito espresso in percentuale")[0]\
                             .replace('TAEG','').replace('%','')\
                             .replace('\n', ' ').strip()
 
-                        addLogFile("TS09", TS09, True)
+                        addLogFile("TS09", TS09)
 
                     if i == 1:
                         TS23 = text.split("Spesa mensile gestione pratica")[1]\
                             .split("Imposta")[0]\
                             .replace('\n', ' ').replace('Euro',"")\
                             .replace('.','').strip()
-                        addLogFile("TS23", TS23, True)
+                        addLogFile("TS23", TS23)
 
                         TS20 = text.split("Costi attivita' istruttoria")[1]\
                             .split("\n")[2]\
@@ -355,7 +355,7 @@ class GetListScraper:
                             .replace('.','').strip()
                         if len(TS20) > 10:
                             TS20 = None
-                        addLogFile("TS20", TS20, True)
+                        addLogFile("TS20", TS20)
 
 
 
