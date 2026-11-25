@@ -95,6 +95,12 @@ class GetListScraper:
             
             addLogFile("info", f"范围: {min_val} - {max_val}")
             
+            addLogFile('info',f"{target_value} > {max_val},")
+            if target_value > max_val:
+                addLogFile('err_info',f"target_value > max_val: {target_value} > {max_val}", True)
+                return False
+            
+
             # 验证目标值
             if target_value < min_val:
                 target_value = min_val
@@ -104,8 +110,8 @@ class GetListScraper:
             # 获取滑块物理范围
             slider_min = int(slider.attrs['min'])
             slider_max = int(slider.attrs['max'])
-            
-            # 先归零
+
+                        # 先归零
             addLogFile("info", "🔄 先归零...")
             await page.evaluate(f"""
                 (function() {{
@@ -166,7 +172,7 @@ class GetListScraper:
             return False
 
 
-    @task_retry(max_retry_count=2)
+    #@task_retry(max_retry_count=1)
     async def fillForm(self):
         addLogFile("inputDicOri_fillForm", self.inputDicOri)
         '''
@@ -197,12 +203,15 @@ class GetListScraper:
         await asyncio.sleep(2)
         total_amount_int = int(self.inputDicOri['total_amount'])
         addLogFile('info'," begin set_slider_value total_amount")
-        await self.set_slider_value(page,'range-slider-amount', total_amount_int)
         
+        statea = await self.set_slider_value(page,'range-slider-amount', total_amount_int)
+        if not statea:
+            raise Exception('statea1 is false')
         await asyncio.sleep(5)
         durationint = int(self.inputDicOri['duration'])
-        await self.set_slider_value(page,'range-slider-rate', durationint)
-
+        statea = await self.set_slider_value(page,'range-slider-rate', durationint)
+        if not statea:
+            raise Exception('statea2 is false')
         await asyncio.sleep(2)
         submitBtn = await page.find('a#btn-goto-form')
         await submitBtn.mouse_click()
@@ -214,7 +223,7 @@ class GetListScraper:
         btn_stampa_secci = None
         try:
             btn_stampa_secci = await page.find('a#stampa-secci', timeout=30)
-            await btn_stampa_secci.mouse_click()
+            await btn_stampa_secci.click()
         except:
 
             raise Exception("cannot go to deteal page")
@@ -289,7 +298,7 @@ class GetListScraper:
                 
                 # 保存为文件
                                 
-                if i in [0,1]:
+                if i in [0,1,2]:
                     with open(f'image_{i}.png', 'wb') as f:
                         f.write(img_data)
                     # print(f'img saved: image_{i}.png')
@@ -300,62 +309,129 @@ class GetListScraper:
                     )
                     addLogFile(f'image_{i}.png', text)
 
-                    if i == 0:
-                        TS01 = text.split("Importo totale del credito")[1]\
-                            .split(",00")[0]\
-                            .replace('\n', ' ').replace('Euro',"")\
-                            .replace('.','').strip()
-                        addLogFile("TS01", TS01)
+                    try:
+                        pass
+
+                        if i == 0:
+                            TS01 = text.split("Importo totale del credito")[1]\
+                                .split(",00")[0]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
+                            addLogFile("TS01", TS01)
+
+
+
+                            TS35 = text.split("Importo totale dovuto (da pagare) dal consumatore")[1]\
+                                .split("Si tratta dell'importo del")[0]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
+
+                            addLogFile("TS35", TS35)
+
+                            TS07 = text.split("Tasso di interesse (debitore) o (se applicabile) tassi di interesse (debitori)")[1]\
+                                .split("diversi che si applicano al contratto di credito")[0]\
+                                .replace('TAN','').replace('%','')\
+                                .replace('\n', ' ').strip()
+
+                            addLogFile("TS07", TS07)
+                            TS09 = text.split("Tasso annuo effettivo globale (TAEG)")[1]\
+                                .split("Si tratta del costo totale")[0]\
+                                .replace('TAEG','').replace('%','')\
+                                .replace('\n', ' ').strip()
+
+                            addLogFile("TS09", TS09)
+
+                        if i == 1:
+                            
+                            TS13 = text.split("Importo Rata")[1]\
+                                .split("Numero Rate")[0]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
+                            if int(TS01) <1000:
+                                raise Exception("TS01 < 1000")
+
+                            addLogFile("TS13", TS13)
+                            
+                            TS17 = text.split("Numero Rate")[1]\
+                                .split("Periodicita' Mensile")[0]\
+                                .replace('\n', ' ').strip()
                         
-                        TS13 = text.split("Importo Rata")[1]\
-                            .split("Numero Rate")[0]\
-                            .replace('\n', ' ').replace('Euro',"")\
-                            .replace('.','').strip()
-                        if int(TS01) <1000:
-                            raise Exception("TS01 < 1000")
+                            addLogFile("TS17", TS17)
+                        if i == 2:
+                            TS23 = text.split("Spesa mensile gestione pratica")[1]\
+                                .split("Imposta")[0]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
+                            addLogFile("TS23", TS23)
 
-                        addLogFile("TS13", TS13)
-                        
-                        TS17 = text.split("Numero Rate")[1]\
-                            .split("Periodicita' Mensile")[0]\
-                            .replace('\n', ' ').strip()
+                            TS20 = text.split("Costi attivita' istruttoria")[1]\
+                                .split("\n")[2]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
+                            if len(TS20) > 10:
+                                TS20 = None
+                            addLogFile("TS20", TS20)
 
-                        addLogFile("TS17", TS17)
 
-                        TS35 = text.split("Importo totale dovuto dal consumatore")[1]\
-                            .split("Importo del capitale preso")[0]\
-                            .replace('\n', ' ').replace('Euro',"")\
-                            .replace('.','').strip()
+                    except:
 
-                        addLogFile("TS35", TS35)
+                        if i == 0:
+                            TS01 = text.split("Importo totale del credito")[1]\
+                                .split(",00")[0]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
+                            addLogFile("TS01", TS01)
 
-                        TS07 = text.split("Tasso di interesse o (se applicabile) tassi di interesse diversi che si applicano")[1]\
-                            .split("al contratto di credito")[0]\
-                            .replace('TAN','').replace('%','')\
-                            .replace('\n', ' ').strip()
+                            
+                            TS13 = text.split("Importo Rata")[1]\
+                                .split("Numero Rate")[0]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
+                            if int(TS01) <1000:
+                                raise Exception("TS01 < 1000")
 
-                        addLogFile("TS07", TS07)
-                        TS09 = text.split("Tasso annuo effettivo globale (TAEG)")[1]\
-                            .split("Costo totale del credito espresso in percentuale")[0]\
-                            .replace('TAEG','').replace('%','')\
-                            .replace('\n', ' ').strip()
+                            addLogFile("TS13", TS13)
+                            
+                            TS17 = text.split("Numero Rate")[1]\
+                                .split("Periodicita' Mensile")[0]\
+                                .replace('\n', ' ').strip()
 
-                        addLogFile("TS09", TS09)
+                            addLogFile("TS17", TS17)
 
-                    if i == 1:
-                        TS23 = text.split("Spesa mensile gestione pratica")[1]\
-                            .split("Imposta")[0]\
-                            .replace('\n', ' ').replace('Euro',"")\
-                            .replace('.','').strip()
-                        addLogFile("TS23", TS23)
+                            TS35 = text.split("Importo totale dovuto dal consumatore")[1]\
+                                .split("Importo del capitale preso")[0]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
 
-                        TS20 = text.split("Costi attivita' istruttoria")[1]\
-                            .split("\n")[2]\
-                            .replace('\n', ' ').replace('Euro',"")\
-                            .replace('.','').strip()
-                        if len(TS20) > 10:
-                            TS20 = None
-                        addLogFile("TS20", TS20)
+                            addLogFile("TS35", TS35)
+
+                            TS07 = text.split("Tasso di interesse o (se applicabile) tassi di interesse diversi che si applicano")[1]\
+                                .split("al contratto di credito")[0]\
+                                .replace('TAN','').replace('%','')\
+                                .replace('\n', ' ').strip()
+
+                            addLogFile("TS07", TS07)
+                            TS09 = text.split("Tasso annuo effettivo globale (TAEG)")[1]\
+                                .split("Costo totale del credito espresso in percentuale")[0]\
+                                .replace('TAEG','').replace('%','')\
+                                .replace('\n', ' ').strip()
+
+                            addLogFile("TS09", TS09)
+
+                        if i == 1:
+                            TS23 = text.split("Spesa mensile gestione pratica")[1]\
+                                .split("Imposta")[0]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
+                            addLogFile("TS23", TS23)
+
+                            TS20 = text.split("Costi attivita' istruttoria")[1]\
+                                .split("\n")[2]\
+                                .replace('\n', ' ').replace('Euro',"")\
+                                .replace('.','').strip()
+                            if len(TS20) > 10:
+                                TS20 = None
+                            addLogFile("TS20", TS20)
 
 
 
